@@ -1,0 +1,51 @@
+name: Oracle Budget Check
+
+on:
+  schedule:
+    - cron: '0 23,2,5,8,11,14 * * *'
+  workflow_dispatch:
+    inputs:
+      force_notify:
+        description: 'Force send Telegram notification'
+        required: false
+        default: 'true'
+
+jobs:
+  check-budget:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v4
+
+      - name: Write OCI config
+        run: |
+          mkdir -p ~/.oci
+          echo "${{ secrets.OCI_CONFIG }}" > ~/.oci/config
+
+      - name: Write private key
+        run: |
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oci_key
+          chmod 600 ~/.oci/oci_key
+
+      - name: Install OCI CLI
+        run: pip install oci
+
+      - name: Query budget
+        id: query
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FORCE_NOTIFY: ${{ github.event.inputs.force_notify || 'false' }}
+        run: bash query-budget.sh
+
+      - name: Summary
+        run: |
+          echo "## Budget Check" >> $GITHUB_STEP_SUMMARY
+          echo "Yesterday's Budget (UTC+8): ${{ steps.query.outputs.BUDGET }} SGD" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.query.outputs.NOTIFY }}" == "1" ]; then
+            echo "Telegram notification sent" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Budget is 0.00 SGD, no notification sent" >> $GITHUB_STEP_SUMMARY
+          fi

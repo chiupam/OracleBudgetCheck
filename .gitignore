@@ -1,0 +1,16 @@
+# OCI Keys
+*.pem
+!.github/workflows/*.yml
+
+# Local config
+.oci/
+config*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
